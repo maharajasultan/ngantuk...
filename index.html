@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>JagaMata — Pendeteksi Kantuk Touring</title>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Leaflet (peta OSM, gratis tanpa API key) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<!-- Leaflet Routing Machine (garis rute via OSRM demo server, gratis tanpa API key) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===================== SIDEBAR / PANEL KONTROL ===================== -->
+  <aside class="sidebar">
+
+    <div class="sheet-handle"></div>
+
+    <header class="brand">
+      <div class="brand__mark">JM</div>
+      <div class="brand__text">
+        <h1>JagaMata</h1>
+        <p>Pendeteksi Kantuk Touring</p>
+      </div>
+      <div class="statuspill" id="statusPill" data-state="idle">
+        <span class="statuspill__dot"></span>
+        <span id="statusPillText">SIAP</span>
+      </div>
+    </header>
+
+    <!-- ROUTE PANEL -->
+    <section class="panel">
+      <h2 class="panel__title">Rute Perjalanan</h2>
+
+      <div class="field">
+        <label>Asal</label>
+        <div class="field__row">
+          <input type="text" id="originInput" placeholder="Lokasi belum terdeteksi" readonly>
+          <button class="btn btn--ghost" id="btnLocate" title="Deteksi lokasi saya">📍</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Tujuan</label>
+        <div class="field__row">
+          <input type="text" id="destInput" placeholder="Ketik nama tempat tujuan…">
+          <button class="btn btn--ghost" id="btnSearch" title="Cari tujuan">🔍</button>
+        </div>
+        <ul class="suggestlist" id="suggestList"></ul>
+      </div>
+
+      <button class="btn btn--outline btn--full" id="btnRoute" disabled>Buat Rute</button>
+
+      <div class="routeinfo" id="routeInfo" hidden>
+        <div><span>Jarak</span><strong id="routeDistance">-</strong></div>
+        <div><span>Estimasi</span><strong id="routeDuration">-</strong></div>
+      </div>
+    </section>
+
+    <!-- CAMERA PANEL
+         Catatan: panel ini disembunyikan secara VISUAL di layar mobile
+         (lihat style.css: .panel--camera), tapi elemen <video> tetap ada
+         di DOM & tetap menerima stream kamera, jadi AI tetap merekam dan
+         mendeteksi kantuk seperti biasa di background. Di desktop, panel
+         ini tetap tampil normal. -->
+    <section class="panel panel--camera">
+      <h2 class="panel__title">Pratinjau Kamera</h2>
+      <div class="camrow">
+        <div class="camwrap" id="camWrap">
+          <video id="video" playsinline autoplay muted></video>
+          <canvas id="overlay"></canvas>
+          <div class="camwrap__empty" id="camEmpty">Kamera belum aktif</div>
+        </div>
+        <div class="ear-readout">
+          <span>EAR</span>
+          <strong id="earValue">0.00</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- ALARM SOUND PANEL: 1 suara saja, sumbernya dari link/URL audio -->
+    <section class="panel">
+      <h2 class="panel__title">Suara Alarm Ngantuk</h2>
+      <div class="field">
+        <label>Link audio alarm (bisa diganti dengan link mp3/ogg lain)</label>
+        <div class="field__row">
+          <input type="text" id="alarmUrlInput"
+                 value="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"
+                 placeholder="https://.../alarm.mp3">
+          <button class="btn btn--ghost" id="btnTestSound" title="Coba suara">🔊</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTROL PANEL -->
+    <section class="panel">
+      <button class="btn btn--primary btn--full" id="btnStart">▶ Mulai Touring</button>
+      <button class="btn btn--danger btn--full" id="btnStop" hidden>■ Selesai / Berhenti</button>
+    </section>
+
+    <!-- STATS PANEL -->
+    <section class="panel panel--stats">
+      <div class="stat">
+        <span class="stat__label">Durasi</span>
+        <span class="stat__value" id="statTimer">00:00</span>
+      </div>
+      <div class="stat">
+        <span class="stat__label">Total Ngantuk</span>
+        <span class="stat__value stat__value--warn" id="statCount">0</span>
+      </div>
+    </section>
+
+    <div class="alertbar" id="alertBar" data-state="safe">
+      <span id="alertBarText">Mata terpantau normal</span>
+    </div>
+
+  </aside>
+
+  <!-- ===================== LAYAR UTAMA / PETA ===================== -->
+  <main class="mainview">
+    <div id="map"></div>
+    <button class="btn-recenter" id="btnRecenter" hidden>🎯 Ikuti Lokasi Saya</button>
+
+    <!-- Widget kamera kecil & bisa diseret (drag), muncul saat touring aktif -->
+    <div class="cam-floating" id="camFloating" hidden></div>
+
+    <!-- Tombol kecil berbentuk ikon untuk mengakhiri touring -->
+    <button class="btn-stop-floating" id="btnStopFloating" hidden title="Selesai / Berhenti">■</button>
+  </main>
+
+</div>
+
+<!-- ===================== MODAL LAPORAN AKHIR ===================== -->
+<div class="modal" id="reportModal" hidden>
+  <div class="modal__card">
+    <h2>Laporan Perjalanan</h2>
+    <p class="modal__subtitle">Touring kamu sudah selesai dipantau. Ini ringkasannya:</p>
+
+    <div class="modal__grid">
+      <div class="modal__box">
+        <span>Durasi Perjalanan</span>
+        <strong id="reportDuration">0 menit</strong>
+      </div>
+      <div class="modal__box">
+        <span>Total Terindikasi Ngantuk</span>
+        <strong id="reportCount">0 kali</strong>
+      </div>
+    </div>
+
+    <p class="modal__conclusion" id="reportConclusion"></p>
+
+    <button class="btn btn--primary btn--full" id="btnCloseReport">Tutup Laporan</button>
+  </div>
+</div>
+
+<!-- ===================== LIBRARIES (CDN) ===================== -->
+
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Leaflet Routing Machine (routing via OSRM demo server) -->
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
+<!-- MediaPipe Face Mesh -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<!-- MediaPipe Camera Utils (mengelola stream webcam -> face mesh) -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
+<script src="js/app.js"></script>
+</body>
+</html>

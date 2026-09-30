@@ -1,0 +1,564 @@
+/* =========================================================
+   JagaMata — Design Tokens
+   Konsep: instrumen dasbor motor saat berkendara malam hari.
+   ========================================================= */
+:root{
+  --bg:            #0B1014;
+  --panel:         #121A20;
+  --panel-alt:     #1A242B;
+  --border:        #263139;
+  --text:          #E7EDF0;
+  --text-muted:    #85949E;
+  --amber:         #FFB020;
+  --amber-dim:     #7A5A1E;
+  --green:         #3ECF8E;
+  --red:           #FF4757;
+  --font-display:  'Rajdhani', sans-serif;
+  --font-body:     'Inter', system-ui, -apple-system, sans-serif;
+}
+
+*{ box-sizing: border-box; }
+
+html, body{
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+button, input{ font-family: inherit; }
+
+/* ---------------- Layout (mobile-first) ----------------
+   Default: peta full-screen jadi latar, panel kontrol tampil
+   sebagai "bottom sheet" mengambang di atasnya — pola umum
+   aplikasi navigasi di HP.
+   Di layar lebar (desktop), otomatis berubah jadi sidebar
+   kiri + peta kanan lewat media query di bawah.
+------------------------------------------------------------ */
+html, body{ height: 100%; overscroll-behavior: none; }
+
+.app{
+  position: relative;
+  height: 100dvh;
+  height: 100vh; /* fallback browser lama */
+  width: 100vw;
+  overflow: hidden;
+}
+
+.mainview{
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+#map{
+  width: 100%;
+  height: 100%;
+  background: #0d1216;
+}
+
+.sidebar{
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  max-height: 44vh;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -10px 30px rgba(0,0,0,0.45);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sheet-handle{
+  width: 40px;
+  height: 4px;
+  border-radius: 3px;
+  background: var(--border);
+  margin: 6px auto 2px;
+  flex-shrink: 0;
+}
+
+/* ---------------- Panel kamera: disembunyikan visual di mobile ----------------
+   Teknik "visually hidden": elemen tetap ada di layout (bukan display:none),
+   jadi <video> tetap menerima & memutar stream kamera secara normal dan
+   MediaPipe tetap bisa membaca framenya untuk deteksi — hanya saja tidak
+   kelihatan sama sekali oleh pengguna.
+------------------------------------------------------------ */
+.panel--camera{
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* ---------------- Mode fokus peta (berlaku di desktop MAUPUN mobile) ----------------
+   Saat touring aktif, seluruh panel kontrol disembunyikan total, peta jadi
+   satu-satunya yang terlihat. Yang tersisa hanya: widget kamera kecil yang
+   bisa diseret, dan satu tombol kecil untuk mengakhiri touring.
+------------------------------------------------------------ */
+.app.touring-active .sidebar{
+  display: none;
+}
+
+/* ---------------- Desktop: sidebar kiri statis + peta kanan ---------------- */
+@media (min-width: 861px){
+  .app{
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    height: 100vh;
+  }
+  .mainview{ position: relative; inset: auto; }
+  .sidebar{
+    position: relative;
+    inset: auto;
+    max-height: none;
+    height: 100%;
+    border-radius: 0;
+    border-top: none;
+    border-right: 1px solid var(--border);
+    box-shadow: none;
+    padding: 20px 18px 28px;
+    gap: 18px;
+  }
+  .sheet-handle{ display: none; }
+
+  /* Kamera preview lebih besar & disusun vertikal di desktop (kembali terlihat normal) */
+  .panel--camera{
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 14px;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    border: 1px solid var(--border);
+  }
+  .camrow{ flex-direction: column; align-items: stretch; gap: 10px; }
+  .camwrap{ width: 100%; height: auto; aspect-ratio: 4 / 3; border-radius: 8px; }
+  .ear-readout{ flex: none; }
+
+  /* Mode fokus peta: peta mengisi penuh begitu kolom sidebar disembunyikan */
+  .app.touring-active{ grid-template-columns: 1fr; }
+}
+
+/* ---------------- Brand header ---------------- */
+.brand{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand__mark{
+  width: 42px; height: 42px;
+  border-radius: 8px;
+  background: linear-gradient(160deg, var(--amber), #C77E12);
+  color: #16130A;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.brand__text{ flex: 1; min-width: 0; }
+.brand__text h1{
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.1;
+  letter-spacing: 0.3px;
+}
+.brand__text p{
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.statuspill{
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--panel-alt);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.statuspill__dot{
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text-muted);
+}
+.statuspill[data-state="active"]{ color: var(--green); border-color: rgba(62,207,142,0.35); }
+.statuspill[data-state="active"] .statuspill__dot{ background: var(--green); box-shadow: 0 0 6px var(--green); }
+.statuspill[data-state="alert"]{ color: var(--red); border-color: rgba(255,71,87,0.4); }
+.statuspill[data-state="alert"] .statuspill__dot{ background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+/* ---------------- Panels ---------------- */
+.panel{
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+.panel__title{
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  margin: 0 0 12px;
+  color: var(--text-muted);
+}
+
+/* ---------------- Fields ---------------- */
+.field{ margin-bottom: 12px; }
+.field:last-child{ margin-bottom: 0; }
+.field label{
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.field__row{
+  display: flex;
+  gap: 6px;
+}
+.field__row input{
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 9px 10px;
+  color: var(--text);
+  font-size: 13px;
+}
+.field__row input:focus{ outline: none; border-color: var(--amber); }
+.field__row input::placeholder{ color: #56646C; }
+
+.suggestlist{
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.suggestlist:empty{ display: none; border: none; }
+.suggestlist li{
+  padding: 8px 10px;
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  background: var(--bg);
+}
+.suggestlist li:last-child{ border-bottom: none; }
+.suggestlist li:hover{ background: #1E2A32; color: var(--amber); }
+
+.routeinfo{
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+}
+.routeinfo div{
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.routeinfo span{ font-size: 10px; color: var(--text-muted); }
+.routeinfo strong{ font-family: var(--font-display); font-size: 15px; }
+
+/* ---------------- Buttons ---------------- */
+.btn{
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.05s ease;
+}
+.btn:active{ transform: translateY(1px); }
+.btn:disabled{ opacity: 0.4; cursor: not-allowed; }
+.btn--full{ width: 100%; }
+.btn--primary{ background: var(--amber); color: #16130A; margin-top: 4px; }
+.btn--primary:hover:not(:disabled){ filter: brightness(1.08); }
+.btn--danger{ background: var(--red); color: #1A0000; }
+.btn--danger:hover:not(:disabled){ filter: brightness(1.08); }
+.btn--outline{ background: transparent; border: 1px solid var(--amber-dim); color: var(--amber); margin-top: 4px; }
+.btn--outline:hover:not(:disabled){ background: rgba(255,176,32,0.08); }
+.btn--ghost{ background: var(--bg); border: 1px solid var(--border); color: var(--text); width: 40px; flex-shrink: 0; }
+.btn--ghost:hover{ border-color: var(--amber); }
+
+/* ---------------- Camera ----------------
+   Mobile-first: kamera dibuat KECIL (thumbnail) berdampingan
+   dengan readout EAR, supaya panel kontrol tetap ringkas dan
+   peta di belakangnya lebih terlihat. Di desktop, kamera
+   ditampilkan lebih besar dan disusun vertikal (lihat media
+   query di bawah).
+------------------------------------------------------------ */
+.camrow{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.camwrap{
+  position: relative;
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+  background: #05080A;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.camwrap video{
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* mirror, seperti kaca spion */
+}
+.camwrap canvas{
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  transform: scaleX(-1);
+}
+.camwrap__empty{
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+  padding: 4px;
+  font-size: 9.5px;
+  line-height: 1.2;
+  color: var(--text-muted);
+  background: #05080A;
+}
+.camwrap__empty[hidden]{ display: none; }
+
+.ear-readout{
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+.ear-readout span{ font-size: 11px; color: var(--text-muted); }
+.ear-readout strong{ font-family: var(--font-display); font-size: 20px; }
+
+
+/* ---------------- Stats ---------------- */
+.panel--stats{
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+}
+.stat{
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 4px;
+}
+.stat__label{ font-size: 11px; color: var(--text-muted); }
+.stat__value{
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+}
+.stat__value--warn{ color: var(--amber); }
+
+/* ---------------- Alert bar ---------------- */
+.alertbar{
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  border: 1px solid var(--border);
+  background: var(--panel-alt);
+  color: var(--text-muted);
+}
+.alertbar[data-state="safe"]{ color: var(--green); border-color: rgba(62,207,142,0.3); }
+.alertbar[data-state="danger"]{
+  color: #1A0000;
+  background: var(--red);
+  border-color: var(--red);
+  animation: pulse 0.6s infinite alternate;
+}
+@keyframes pulse{
+  from{ filter: brightness(1); }
+  to{ filter: brightness(1.25); }
+}
+
+/* ---------------- Live position marker ---------------- */
+.live-marker-icon{ background: transparent; border: none; }
+.live-marker-dot{
+  display: block;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--amber);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 rgba(255,176,32,0.6);
+  animation: liveping 1.6s infinite;
+}
+@keyframes liveping{
+  0%   { box-shadow: 0 0 0 0 rgba(255,176,32,0.55); }
+  70%  { box-shadow: 0 0 0 14px rgba(255,176,32,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,176,32,0); }
+}
+
+.btn-recenter{
+  position: absolute;
+  top: calc(16px + env(safe-area-inset-top, 0px));
+  right: 16px;
+  z-index: 500;
+  background: var(--panel-alt);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 9px 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+}
+.btn-recenter:hover{ border-color: var(--amber); color: var(--amber); }
+
+/* Tombol kecil berbentuk ikon bulat untuk mengakhiri touring */
+.btn-stop-floating{
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 700;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--red);
+  color: #1A0000;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: 0 6px 18px rgba(255,71,87,0.5);
+  cursor: pointer;
+}
+.btn-stop-floating[hidden]{ display: none; }
+
+/* Widget kamera kecil, bisa diseret bebas ke mana saja di atas peta */
+.cam-floating{
+  position: fixed;
+  top: 90px;
+  left: 16px;
+  z-index: 650;
+  width: 104px;
+  height: 104px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid var(--amber);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.5);
+  background: #000;
+  cursor: grab;
+  touch-action: none; /* penting supaya drag di layar sentuh tidak ikut men-scroll peta */
+}
+.cam-floating:active{ cursor: grabbing; }
+.cam-floating[hidden]{ display: none; }
+
+/* Saat camwrap dipindah ke dalam widget mengambang, paksa mengisi penuh wadahnya */
+.camwrap.camwrap--floating{
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: auto !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+/* ---------------- Leaflet tweaks ---------------- */
+.leaflet-routing-container{
+  background: var(--panel-alt) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  font-family: var(--font-body) !important;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+/* ---------------- Modal ---------------- */
+.modal{
+  position: fixed; inset: 0;
+  background: rgba(5,8,10,0.72);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+.modal[hidden]{ display: none; }
+.modal__card{
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 26px;
+  max-width: 420px;
+  width: 100%;
+}
+.modal__card h2{
+  font-family: var(--font-display);
+  font-size: 22px;
+  margin: 0 0 6px;
+}
+.modal__subtitle{
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 18px;
+}
+.modal__grid{
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.modal__box{
+  flex: 1;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.modal__box span{ font-size: 11px; color: var(--text-muted); }
+.modal__box strong{ font-family: var(--font-display); font-size: 20px; }
+.modal__conclusion{
+  font-size: 13.5px;
+  line-height: 1.5;
+  background: var(--bg);
+  border-left: 3px solid var(--amber);
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 18px;
+}
